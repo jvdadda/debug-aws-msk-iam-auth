@@ -5,4 +5,4 @@
    * `AWS_ACCESS_KEY_ID` with your own AWS profile
    * `AWS_SECRET_ACCESS_KEY` with your own AWS profile
    * `AWS_REGION` with your own AWS region
-3. Do a `make build start`
+3. Do a `make build/native start` or `make build/jvm start`

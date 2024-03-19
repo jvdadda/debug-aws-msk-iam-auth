@@ -8,6 +8,7 @@ import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
@@ -36,14 +37,19 @@ class Main(
         }
 
         adminClient().use {
-            it.createTopics(listOf(NewTopic(topicName, 1, 1))).all().get()
+            if (!it.listTopics().names().get().contains(topicName)) {
+                it.createTopics(listOf(NewTopic(topicName, 1, 1))).all().get()
+            }
         }
 
         producer().send(ProducerRecord(topicName, "key", "value")).get().let {
             println("Sent record(offset=${it.offset()}, partition=${it.partition()}) to topic ${it.topic()}")
         }
         consumer().let {
-            it.subscribe(listOf(topicName))
+            val topicPartition = TopicPartition(topicName, 0)
+            it.assign(listOf(topicPartition))
+            it.seekToBeginning(listOf(topicPartition))
+
             it.poll(Duration.ofSeconds(5)).forEach { r ->
                 println("Received record: ${r.value()} from topic ${r.topic()}")
             }
@@ -75,6 +81,7 @@ class Main(
         properties["bootstrap.servers"] = bootstrapServers
         properties["key.deserializer"] = StringDeserializer::class.java.name
         properties["value.deserializer"] = StringDeserializer::class.java.name
+        properties["group.id"] = "test-group"
         if (authenticated) {
             fillPropertiesWithIamMskAuthentication(properties)
         }
